@@ -14,22 +14,23 @@ framework:
     num_gpu: 1
 
 model:
-    backbone_fc: mlp # {mlp}
-    backbone_cnn: basic # {basic}
+    protocol: "cvae"
+    latent_z_dim: 128
     hidden_dim: 64
     activation_func: tanh # {tanh, sigm, relu}
 
 data:
-    input_fc_dim: 203 ## depth input: 100*2, state dim: 3
-    input_cnn_dim: [1, 256, 256]
-    output_dim: 3 ## output state 
+    protocol: "cvae"
+    input_depth_dim: 200 ## depth input: 100*2, state dim: 3
+    input_state_dim: 3
+    input_occumap_dim: [1, 256, 256]
     batch_size: 8
     crop_size: 256
     downsample_factor: 1
     laser_max_range: 4
     n_ray: 100
     fov: 240
-    occu_map_dir: 'data/maps'
+    occu_map_dir: "data/maps"
 
 train:
     num_epoch: 100

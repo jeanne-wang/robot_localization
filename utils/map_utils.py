@@ -181,8 +181,8 @@ class Map(object):
         '''
         return rotate_2d(xys, heading) + pos
 
-    def get_occupancy_value(self, grid_pos_x, grid_pos_y):
-        return self.occupancy_grid[grid_pos_y, grid_pos_x]
+    def get_occupancy_grid(self):
+        return self.occupancy_grid
 
 
 class Visualizer:

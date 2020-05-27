@@ -1,33 +1,22 @@
 import torch
 import torch.nn as nn
 
+activation = {
+    "tanh": nn.Tanh,
+    "sigm": nn.Sigmoid,
+    "relu": nn.ReLU,
+}
 
-class basic_model(nn.Module):
-    def __init__(self, config):
-        super(basic_model, self).__init__()
-
-        self.batch_size = config.data.batch_size
-        self.input_fc_dim = config.data.input_fc_dim
-        self.input_cnn_dim = config.data.input_cnn_dim
-        self.output_dim = config.data.output_dim
-
-        self.hidden_dim = config.model.hidden_dim        
-        self.activation_func = activation[config.model.activation_func]
+class basic_MLP(nn.Module):
+    def __init__(self, cfg, input_dim):
+        super(basic_MLP, self).__init__()
+        self.input_dim = input_dim
+        self.hidden_dim = cfg.model.hidden_dim        
+        self.activation_func = activation[cfg.model.activation_func]
         self.activation = self.activation_func()
-        self.num_layers = config.model.num_layers
-        
-        
-
-    def forward(self):
-        raise NotImplementedError
-
-
-class basic_MLP(basic_model):
-    def __init__(self, config):
-        super(basic_MLP, self).__init__(config)
 
         self.backbone = nn.Sequential(
-            nn.Linear(self.input_fc_dim, self.hidden_dim),
+            nn.Linear(self.input_dim, self.hidden_dim),
             self.activation_func(),
             nn.Linear(self.hidden_dim, self.hidden_dim),
             self.activation_func(),
@@ -36,12 +25,15 @@ class basic_MLP(basic_model):
     def forward(self, x):
         return self.backbone(x)
 
-class basic_CNN(basic_model):
-    def __init__(self, config):
-        super(basic_CNN, self).__init__(config)
-
+class basic_CNN(nn.Module):
+    def __init__(self, cfg):
+        super(basic_CNN, self).__init__()
+        self.input_dim = cfg.data.input_occumap_dim   
+        self.hidden_dim = cfg.model.hidden_dim   
+        self.activation_func = activation[cfg.model.activation_func]
+        self.activation = self.activation_func()
         self.backbone = nn.Sequential(
-            nn.Conv2d(self.input_cnn_dim[0], self.hidden_dim, 7, 2),
+            nn.Conv2d(self.input_dim[0], self.hidden_dim, 7, 2),
             self.activation_func(),
             nn.MaxPool2d(3, 2),
             nn.Conv2d(self.hidden_dim, self.hidden_dim, 3, 1),
@@ -59,29 +51,25 @@ class Encoder(nn.Module):
 
     def __init__(self, cfg):
         super(Encoder, self).__init__()
+        self.input_fc_dim = cfg.data.input_depth_dim + cfg.data.input_state_dim
+        self.latent_z_dim = cfg.model.latent_z_dim
 
-        self.cfg = cfg
-        self.batch_size = cfg.data.batch_size
-        self.input_fc_dim = cfg.data.input_fc_dim
-        self.latent_dim = cfg.data.latent_dim
+        self.fc = basic_MLP(cfg, self.input_fc_dim) ## for encoding depth and state input
+        self.cnn = basic_CNN(cfg) ## for encoding occu map
 
-        self.backbone_fc = backbone_fc[cfg.model.backbone_fc](cfg)
-        self.backbone_cnn = backbone_cnn[cfg.model.backbone_cnn](cfg)
-
-
-        self.linear_means = nn.Linear(self.hidden_dim+conv_out_dim, self.latent_dim)
-        self.linear_log_var = nn.Linear(self.hidden_dim+conv_out_dim, self.latent_dim)
+        self.linear_means = nn.Linear(fc_out_dim+conv_out_dim, self.latent_z_dim)
+        self.linear_log_var = nn.Linear(fc_out_dim+conv_out_dim, self.latent_z_dim)
     def forward(self, state, occupancy, depth):
+ 
+        x1 = self.fc(torch.cat((state, depth), 1))
+        x2 = self.cnn(occupancy)
 
-        fc_in = torch.cat((state, depth), 1)
-        fc_out = self.backbone_fc(fc_in)
+        batch_size = x2.shape[0]
+        x2 = x2.view(batch_size,-1) ## flatten the output from cnn
 
-        cnn_out = self.backbone_cnn(occupancy)
-        cnn_out = cnn_out.view(self.batch_size,-1)
-        out = torch.cat((fc_out, cnn_out), 1)
-
-        means = self.linear_means(out)
-        log_vars = self.linear_log_var(out)
+        x = torch.cat((x1, x2), 1)
+        means = self.linear_means(x)
+        log_vars = self.linear_log_var(x)
 
         return means, log_vars
 
@@ -91,15 +79,20 @@ class Decoder(nn.Module):
 
         super(Decoder, self).__init__()
 
-        self.cfg = cfg
-        self.latent_dim = cfg.data.latent_dim
+        self.latent_z_dim = cfg.model.latent_z_dim
+        self.input_fc_dim = cfg.data.input_depth_dim + cfg.model.latent_z_dim
+        self.fc = basic_MLP(cfg, self.input_fc_dim) ## for decoding depth and latent variable
+        self.cnn = basic_CNN(cfg) ## for encoding occu map
 
-        self.backbone_fc = backbone_fc[cfg.model.backbone_fc](cfg)
+        self.linear_out = nn.Linear(fc_out_dim+conv_out_dim, self.input_state_dim)
 
-        self.fc_dim = self.latent_dim + self.input_fc_dim
-
-    def forward(self, z, c):
-
+        
+    def forward(self, z, occupancy, depth):
+        x1 = self.fc(torch.cat((z, depth), 1))
+        x2 = self.cnn(occupancy)
+        batch_size = x2.shape[0]
+        x2 = x2.view(batch_size,-1) ## flatten the output from cnn
+        x = self.linear_out(torch.cat((x1, x2), 1))
         return x
 
 
@@ -107,46 +100,41 @@ class CVAE(nn.Module):
 
     def __init__(self, cfg):
         super(CVAE, self).__init__()
-        # some hypeparameters
-        self.cfg = cfg
-        self.batch_size = cfg.data.batch_size
-        self.input_dim = cfg.data.depth_dim + cfg.data.state_dim
-
+        self.latent_z_dim = cfg.model.latent_z_dim
         self.encoder = Encoder(cfg)
         self.decoder = Decoder(cfg)
 
     def forward(self, state, occupancy, depth):
 
+        batch_size = state.size(0)
+        assert(occupancy.size(0) == batch_size)
+        assert(depth.size(0) == batch_size)
+
         means, log_var = self.encoder(state, occupancy, depth)
 
         std = torch.exp(0.5 * log_var)
-        eps = torch.randn([batch_size, self.latent_dim])
+        eps = torch.randn([batch_size, self.latent_z_dim])
         z = eps * std + means
 
         recon_state = self.decoder(z, occupancy, depth)
 
         return recon_state, means, log_var, z
 
-    def inference(self, n=1, occupancy, depth):
+    def inference(self, occupancy, depth):
 
-        batch_size = n
-        z = torch.randn([batch_size, self.latent_dim])
+        batch_size = occupancy.size(0)
+        z = torch.randn([batch_size, self.latent_z_dim])
 
-        recon_x = self.decoder(z, occupancy, depth)
+        recon_state = self.decoder(z, occupancy, depth)
 
-        return recon_x
+        return recon_state
 
+## to be implemented for state classification
+class CNN(nn.Module):
+    def __init__(self, cfg):
+        super(CNN, self).__init__()
+        self.cfg = cfg
 
-backbone_fc = {
-    "mlp": basic_MLP,
-}
+    def forward(self, occupancy, depth):
+        raise NotImplementedError
 
-backbone_cnn = {
-    "basic": basic_CNN,
-}
-
-activation = {
-    "tanh": nn.Tanh,
-    "sigm": nn.Sigmoid,
-    "relu": nn.ReLU,
-}

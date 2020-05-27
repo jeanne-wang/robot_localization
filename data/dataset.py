@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 from torch.utils.data import Dataset
-import utils.map_utils
+from utils.map_utils import Map, depth_to_xy
 import glob, os.path as osp
 import random
 class cvae_dataset(Dataset):
@@ -32,18 +32,27 @@ class cvae_dataset(Dataset):
                  downsample_factor=self.downsample_factor,
                  crop_size = self.crop_size)
 
-
+        occupancy_grid = m.get_occupancy_grid()
         ## uniformly random sample state in freespace
-        while m.get_occupancy_value(pos_x, pos_y) != 0:
-            pos_x = random.randint(0, self.crop_size)
-            pos_y = random.randint(0, self.crop_size)
+        while occupancy_grid[grid_pos_x, grid_pos_y]!= 0:
+            world_pos = np.random.uniform(0, self.crop_size*m.resolution, 2)
+            grid_pos_x, grid_pos_y = m.grid_coord(world_pos[0], world_pos[1])
+        
 
-        pos = np.array([pos_x, pos_y])*self.resolution ## pos coords in meters
         heading = np.deg2rad(90) ## fix heading
         fov = np.deg2rad(self.fov)
-        depth = m.get_1d_depth(pos, heading, fov, self.n_ray, resolution=0.01)
-        depth_xy = depth_to_xy(depth, pos, heading, fov)
+        depth = m.get_1d_depth(world_pos, heading, fov, self.n_ray)
+        depth_xy = depth_to_xy(depth, world_pos, heading, fov)
 
-        state = np.array([pos[0], pos[1], heading])
+        state = np.array([world_pos[0], world_pos[1], heading])
 
-        return torch.Tensor(m.occupancy_grid), torch.Tensor(depth_xy), torch.Tensor(state)
+        return torch.Tensor(occupancy_grid).unsqueeze(0), torch.Tensor(depth_xy).view(self.n_ray, -1), torch.Tensor(state)
+
+def cnn_dataset(Dataset):
+    def __init__(self, cfg):
+        self.cfg = cfg
+
+    def __len__(self):
+        raise NotImplementedError
+    def __getitem__(self, index):
+        raise NotImplementedError
