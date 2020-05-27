@@ -166,7 +166,7 @@ class CNN(nn.Module):
         self.fc3 = nn.Linear(128, 64)
         
         
-    def forward(self, occupancy, depth):
+    def forward(self, x):
         x = self.conv1(x)
         x = self.conv2(x)
         x = x.view(x.size()[0], -1)
