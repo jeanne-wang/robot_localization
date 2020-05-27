@@ -82,7 +82,7 @@ class Map(object):
 
         ## random crop (after crop, we still set origin as zero)
         if crop_size is not None:
-            self._random_crop(crop_size):
+            self._random_crop(crop_size)
 
         self.map_bbox = self._compute_map_bbox()
         self.area = self._compute_free_area()
