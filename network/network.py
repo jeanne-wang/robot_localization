@@ -143,17 +143,17 @@ class CNN(nn.Module):
         self.conv1 = nn.Sequential(
             nn.Conv2d(1, 16, 5, 1, 2),
             nn.ReLU(),
-            nn.MaxPool2d(2, 2)
+            nn.AdaptiveAvgPool2d(2, 2) #50*2
         )
 
         self.conv2 = nn.Sequential(
             nn.Conv2d(16, 32, 5, 1, 2),
             nn.ReLU(),
-            nn.MaxPool2d(2, 2)
+            nn.AdaptiveAvgPool2d(2, 2) #25*1
         )
 
         self.fc1 = nn.Sequential(
-            nn.Linear(32*100, 256),
+            nn.Linear(32*25*1, 256),
             nn.BatchNorm1d(256),
             nn.ReLU()
         )
@@ -174,4 +174,3 @@ class CNN(nn.Module):
         x = self.fc2(x)
         x = self.fc3(x)
         return x
-
