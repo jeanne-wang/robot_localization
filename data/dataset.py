@@ -48,6 +48,7 @@ class cvae_dataset(Dataset):
         
         return torch.Tensor(occupancy).unsqueeze(0), torch.Tensor(depth_xy).view(self.n_ray, -1), torch.Tensor(state)
 
+    
 class cnn_dataset(Dataset):
     def __init__(self, cfg):
         self.cfg = cfg
@@ -85,15 +86,20 @@ class cnn_dataset(Dataset):
             while occupancy != 0:
                 class_size = self.crop_size*m.resolution/4
                 class_pos = np.random.randint(0,4,3)
+                
                 world_pos = np.random.uniform(0, class_size, 2)
-                heading = np.random.uniform(0,np.pi/4) + np.pi/4*class_pos[2]
+                # heading = np.random.uniform(0,np.pi/4) + np.pi/4*class_pos[2]
+                heading = class_pos[2] * 90
+                
                 grid_pos_x, grid_pos_y = m.grid_coord(world_pos[0] + class_pos[0] *class_size  , world_pos[1]+ class_pos[1] *class_size)
                 label = (1 + class_pos[0]) * 100 + (1+class_pos[1]) * 10 + (1 + class_pos[2])
                 occupancy = occupancy_grid[grid_pos_x, grid_pos_y]
                 fov = np.deg2rad(self.fov)
                 depth = m.get_1d_depth(world_pos, heading, fov, self.n_ray)
                 depth_xy = depth_to_xy(depth, world_pos, heading, fov)
-                state = np.array([world_pos[0], world_pos[1], heading,label])
+                
+                #save the class info into state
+                state = np.array([class_pos[0]/4, class_pos[1]/4, heading,label])
                 state_arr = np.append(state_arr,state)
                 depth_xy_arr = np.append(depth_xy_arr,depth_xy)
             # keep finding next state
