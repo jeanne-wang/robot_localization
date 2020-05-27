@@ -32,9 +32,9 @@ class cvae_dataset(Dataset):
                  downsample_factor=self.downsample_factor,
                  crop_size = self.crop_size)
 
-        occupancy_grid = m.get_occupancy_grid()
+        occupancy= m.get_occupancy_grid()
         ## uniformly random sample state in freespace
-        while occupancy_grid[grid_pos_x, grid_pos_y]!= 0:
+        while occupancy[grid_pos_x, grid_pos_y]!= 0:
             world_pos = np.random.uniform(0, self.crop_size*m.resolution, 2)
             grid_pos_x, grid_pos_y = m.grid_coord(world_pos[0], world_pos[1])
         
@@ -45,8 +45,8 @@ class cvae_dataset(Dataset):
         depth_xy = depth_to_xy(depth, world_pos, heading, fov)
 
         state = np.array([world_pos[0], world_pos[1], heading])
-
-        return torch.Tensor(occupancy_grid).unsqueeze(0), torch.Tensor(depth_xy).view(self.n_ray, -1), torch.Tensor(state)
+        
+        return torch.Tensor(occupancy).unsqueeze(0), torch.Tensor(depth_xy).view(self.n_ray, -1), torch.Tensor(state)
 
 def cnn_dataset(Dataset):
     def __init__(self, cfg):

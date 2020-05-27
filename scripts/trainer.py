@@ -98,10 +98,10 @@ class Trainer_cvae(Trainer):
                     occupancy, depth, state = (
                         occupancy.to(device=0),
                         depth.to(device=0),
-                        state.to(device=0))
+                        state.to(device=0),
+                    )
 
                 # forward
-                
                 recon_state, means, log_var, z = self.model(state, occupancy, depth)
 
                 # loss
@@ -118,7 +118,7 @@ class Trainer_cvae(Trainer):
                     l.data,
                     idx
                     + (
-                        self.cfg.data.num_datapoints_per_epoch
+                        self.dataset.__len__()
                         / self.cfg.data.batch_size
                     )
                     * epoch,
