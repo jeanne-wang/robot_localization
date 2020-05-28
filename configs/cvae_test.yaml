@@ -1,4 +1,4 @@
-mode: "train"
+mode: "test"
 
 exp_prefix: "cvae"
 

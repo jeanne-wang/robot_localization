@@ -13,7 +13,7 @@ trainer_protocol = {
 
 def get_configs(replace=True):
     parser = argparse.ArgumentParser(description="We are the best!!!")
-    parser.add_argument("--config", type=str, default="configs/cvae.yaml")
+    parser.add_argument("--config", type=str, default="configs/cvae_train.yaml")
     parser.add_argument("--n", type=int, default=2)
     args = parser.parse_args()
     config = Config(args.config, replace)

@@ -13,7 +13,7 @@ class cvae_dataset(Dataset):
         self.downsample_factor = cfg.data.downsample_factor
         self.laser_max_range = cfg.data.laser_max_range
         self.n_ray = cfg.data.n_ray
-        self.fov = cfg.data.fov
+        self.fov = np.deg2rad(cfg.data.fov)
 
         self.occu_map_paths= sorted(glob.glob(osp.join(cfg.data.occu_map_dir,'*')))
         self.length = len(self.occu_map_paths)
@@ -30,23 +30,44 @@ class cvae_dataset(Dataset):
         m = Map(osp.join(occu_map_path, 'floorplan.yaml'), 
                 laser_max_range=self.laser_max_range, 
                  downsample_factor=self.downsample_factor,
-                 crop_size = self.crop_size)
+                 crop_size=self.crop_size)
 
-        occupancy= m.get_occupancy_grid()
+        occupancy = m.get_occupancy_grid()
+        W_world = occupancy.shape[1]*m.resolution
+        H_world = occupancy.shape[0]*m.resolution
+
         ## uniformly random sample state in freespace
-        while occupancy[grid_pos_x, grid_pos_y]!= 0:
-            world_pos = np.random.uniform(0, self.crop_size*m.resolution, 2)
-            grid_pos_x, grid_pos_y = m.grid_coord(world_pos[0], world_pos[1])
+        while occupancy[grid_pos_y, grid_pos_x]!= 0:
+            world_pos_x = np.random.uniform(0, W_world, 1)[0]
+            world_pos_y = np.random.uniform(0, H_world, 1)[0]
+            grid_pos_x, grid_pos_y = m.grid_coord(world_pos_x, world_pos_y)
+            grid_pos_x = np.clip(grid_pos_x, 0, occupancy.shape[1]-1)
+            grid_pos_y = np.clip(grid_pos_y, 0, occupancy.shape[0]-1)
         
+        world_pos = np.array((world_pos_x, world_pos_y))
+        ## uniformly random sample heading
+        heading = np.random.uniform(0, 360, 1)[0]
+        heading = np.deg2rad(heading)
+        depth = m.get_1d_depth(world_pos, heading, self.fov, self.n_ray)
+        depth_xy = depth_to_xy(depth, world_pos, heading, self.fov)
 
-        heading = np.deg2rad(90) ## fix heading
-        fov = np.deg2rad(self.fov)
-        depth = m.get_1d_depth(world_pos, heading, fov, self.n_ray)
-        depth_xy = depth_to_xy(depth, world_pos, heading, fov)
+        ## normalize state position and depth info to [-1,1]
+        world_pos_x = 2.0*world_pos_x/ max(W_world-1,1)-1.0
+        world_pos_y = 2.0*world_pos_y/ max(H_world-1,1)-1.0
+        depth_xy[:,0] = 2.0*depth_xy[:,0]/ max(W_world-1,1)-1.0
+        depth_xy[:,1] = 2.0*depth_xy[:,1]/ max(H_world-1,1)-1.0
+        heading = 2*heading/(2*math.pi-1)-1.0
 
-        state = np.array([world_pos[0], world_pos[1], heading])
+        print(state)
+        print(depth_xy)
+        state = torch.Tensor(np.array((world_pos_x, world_pos_y, heading)))
+        occupancy = torch.Tensor(occupancy).unsqueeze(0)
+        depth_xy = torch.Tensor(depth_xy).view(-1,)
         
-        return torch.Tensor(occupancy).unsqueeze(0), torch.Tensor(depth_xy).view(self.n_ray, -1), torch.Tensor(state)
+        print(depth_xy.shape)
+        print(state.shape)
+
+        return occupancy, depth_xy, state
 
     
 class cnn_dataset(Dataset):

@@ -1,0 +1,39 @@
+mode: "train"
+
+exp_prefix: "cvae"
+
+base_dir: "results/{{exp_prefix}}"
+log_dir: "log.jsonl"
+
+checkpoint_dir: "{{base_dir}}/checkpoints"
+checkpoint_file: best_model
+
+framework:
+    seed: 12345
+    num_thread: 12
+    num_gpu: 1
+
+model:
+    protocol: "cvae"
+    latent_z_dim: 128
+    hidden_dim: 64
+    activation_func: tanh # {tanh, sigm, relu}
+
+data:
+    protocol: "cvae"
+    input_depth_dim: 200 ## depth input: 100*2, state dim: 3
+    input_state_dim: 3
+    input_occumap_dim: [1, 256, 256]
+    batch_size: 8
+    crop_size: 256
+    downsample_factor: 4
+    laser_max_range: 4
+    n_ray: 100
+    fov: 240
+    occu_map_dir: "data/maps_train"
+
+train:
+    num_epoch: 100
+    lr: 0.01
+    lr_ms: [70, 90]
+    save_iter: 10
