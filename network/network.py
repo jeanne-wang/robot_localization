@@ -139,8 +139,38 @@ class CVAE(nn.Module):
 class CNN(nn.Module):
     def __init__(self, cfg):
         super(CNN, self).__init__()
-        self.cfg = cfg
+        self.input_dim = 100*4
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(1, 16, 5, 1, 2),
+            nn.ReLU(),
+            nn.AvgPool2d(2, 2)       #50*2
+        )
 
-    def forward(self, occupancy, depth):
-        raise NotImplementedError
+        self.conv2 = nn.Sequential(
+            nn.Conv2d(16, 32, 5, 1, 2),
+            nn.ReLU(),
+            nn.AvgPool2d(2, 2)        #25*1
+        )
 
+        self.fc1 = nn.Sequential(
+            nn.Linear(32*25*1, 256),
+            nn.BatchNorm1d(256),
+            nn.ReLU()
+        )
+
+        self.fc2 = nn.Sequential(
+            nn.Linear(256, 128),
+            nn.BatchNorm1d(128),
+            nn.ReLU()
+        )
+        self.fc3 = nn.Linear(128, 64)
+        
+        
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.conv2(x)
+        x = x.view(x.size()[0], -1)
+        x = self.fc1(x)
+        x = self.fc2(x)
+        x = self.fc3(x)
+        return x
