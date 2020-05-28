@@ -69,24 +69,17 @@ class AttrDict(dict):
 
 class Config(AttrDict):
     """Config with yaml file.
-
     This class is used to config model hyper-parameters, global constants, and
     other settings with yaml file. All settings in yaml file will be
     automatically logged into file.
-
     Args:
         filename(str): File name.
-
     Examples:
-
         yaml file ``model.yml``::
-
             NAME: 'neuralgym'
             ALPHA: 1.0
             DATASET: '/mnt/data/imagenet'
-
         Usage in .py:
-
         >>> from neuralgym import Config
         >>> config = Config('model.yml')
         >>> print(config.NAME)
