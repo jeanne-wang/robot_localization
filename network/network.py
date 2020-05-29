@@ -120,7 +120,7 @@ class CVAE(nn.Module):
         means, log_var = self.encoder(state, occupancy, depth)
 
         std = torch.exp(0.5 * log_var)
-        eps = torch.randn([batch_size, self.latent_z_dim])
+        eps = torch.randn([batch_size, self.latent_z_dim]).to(std.device)
         z = eps * std + means
 
         recon_state = self.decoder(z, occupancy, depth)
@@ -130,7 +130,7 @@ class CVAE(nn.Module):
     def inference(self, occupancy, depth):
 
         batch_size = occupancy.size(0)
-        z = torch.randn([batch_size, self.latent_z_dim])
+        z = torch.randn([batch_size, self.latent_z_dim]).to(occupancy.device)
 
         recon_state = self.decoder(z, occupancy, depth)
 
