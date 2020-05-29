@@ -93,8 +93,13 @@ class Map(object):
     def _random_crop(self, crop_size):
         h, w = self.occupancy_grid.shape
         th = tw = crop_size
-        h1 = random.randint(0, h - th)
-        w1 = random.randint(0, w - tw)
+        while True:
+            h1 = random.randint(0, h - th)
+            w1 = random.randint(0, w - tw)
+            crops = occupancy_grid[h1:(h1+th), w1:(w1+tw)]
+            if (np.sum((self.occupancy_grid == 0)) > 0):
+                break
+
         self.occupancy_grid = self.occupancy_grid[h1:(h1+th), w1:(w1+tw)]
         self.inv_occupancy_grid = self.inv_occupancy_grid[h1:(h1+th), w1:(w1+tw)]
 
