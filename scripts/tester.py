@@ -5,7 +5,6 @@ import numpy as np
 
 from network import network
 from data import dataset
-from data.visualization import Visualizer
 import cv2, json
 import matplotlib.pyplot as plt
 

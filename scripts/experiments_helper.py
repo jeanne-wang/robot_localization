@@ -1,7 +1,7 @@
 import argparse
 from utils.config import Config
 from utils.config import Replaced_Config
-from scripts import trainer#, tester
+from scripts import trainer, tester
 from multiprocessing import Process
 import os, torch
 import numpy as np
