@@ -28,10 +28,15 @@ class cvae_dataset(Dataset):
         occu_map_path = self.occu_map_paths[index]
 
         ## load map and random crop
-        m = Map(osp.join(occu_map_path, 'floorplan.yaml'), 
-                laser_max_range=self.laser_max_range, 
-                 downsample_factor=self.downsample_factor,
-                 crop_size=self.crop_size)
+        if self.crop_size == 0:
+            m = Map(osp.join(occu_map_path, 'floorplan.yaml'), 
+                    laser_max_range=self.laser_max_range, 
+                    downsample_factor=self.downsample_factor)
+        else:
+            m = Map(osp.join(occu_map_path, 'floorplan.yaml'), 
+                    laser_max_range=self.laser_max_range, 
+                    downsample_factor=self.downsample_factor,
+                    crop_size=self.crop_size)
 
         occupancy = m.get_occupancy_grid()
         W_world = occupancy.shape[1]*m.resolution

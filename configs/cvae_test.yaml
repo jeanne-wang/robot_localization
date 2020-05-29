@@ -24,7 +24,7 @@ data:
     input_state_dim: 3
     input_occumap_dim: [1, 256, 256] ## during test, we only downsample, not crop. Thus image sizes vary
     batch_size: 1
-    crop_size: None
+    crop_size: 0 ## means no crop
     downsample_factor: 4
     laser_max_range: 4
     n_ray: 100
