@@ -96,8 +96,8 @@ class Map(object):
         while True:
             h1 = random.randint(0, h - th)
             w1 = random.randint(0, w - tw)
-            crops = occupancy_grid[h1:(h1+th), w1:(w1+tw)]
-            if (np.sum((self.occupancy_grid == 0)) > 0):
+            crops = self.occupancy_grid[h1:(h1+th), w1:(w1+tw)]
+            if (np.sum((crops == 0)) > 0):
                 break
 
         self.occupancy_grid = self.occupancy_grid[h1:(h1+th), w1:(w1+tw)]
