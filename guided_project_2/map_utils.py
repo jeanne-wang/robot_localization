@@ -3,8 +3,8 @@ import cv2
 import numpy as np
 import yaml
 import matplotlib.pyplot as plt
-
-
+import random
+import math
 def depth_to_xy(depth, pos, heading, fov):
     '''
     Convert depth values to x,y locations.
@@ -47,7 +47,7 @@ def rotate_2d(v, angle):
 
 
 class Map(object):
-    def __init__(self, config_file, laser_max_range=10.0, downsample_factor=1):
+    def __init__(self, config_file, laser_max_range=10.0, downsample_factor=1, crop_size=None):
         '''
         :config_file: a .yaml file containing meta data of the map.
         :laser_max_range: maximum range of the laser scanner (in meters).
@@ -72,6 +72,7 @@ class Map(object):
         self.inv_occupancy_grid = (255 - self.occupancy_grid)
 
         # Pixel coordinate representing the origin of the occupancy grid.
+        ## origin is always zero for all maps
         self.origin = np.array(self.cfg['origin']) / downsample_factor
 
         self.resolution = float(self.cfg['resolution']) * downsample_factor
@@ -79,10 +80,24 @@ class Map(object):
         # 1.0 / self.resolution should be an integer.
         assert self.n_division - 1.0 / self.resolution < 1, 'Bad downsampling factor'
 
+        ## random crop (after crop, we still set origin as zero)
+        if crop_size is not None:
+            self._random_crop(crop_size)
+
         self.map_bbox = self._compute_map_bbox()
         self.area = self._compute_free_area()
 
         self.laser_max_range = laser_max_range
+
+    ### add by xiaojuan for random crop
+    def _random_crop(self, crop_size):
+        random.seed(0)
+        h, w = self.occupancy_grid.shape
+        th = tw = crop_size
+        h1 = random.randint(0, h - th)
+        w1 = random.randint(0, w - tw)
+        self.occupancy_grid = self.occupancy_grid[h1:(h1+th), w1:(w1+tw)]
+        self.inv_occupancy_grid = self.inv_occupancy_grid[h1:(h1+th), w1:(w1+tw)]
 
     def _compute_free_area(self):
         return np.sum((self.occupancy_grid == 0)) * self.resolution**2
@@ -167,6 +182,9 @@ class Map(object):
         '''
         return rotate_2d(xys, heading) + pos
 
+    def get_occupancy_grid(self):
+        return self.occupancy_grid
+
 
 class Visualizer:
     def __init__(self, map, ax):
@@ -203,18 +221,58 @@ class Visualizer:
 
 if __name__ == '__main__':
     fig, ax = plt.subplots()
-    m = Map('demo_map/floorplan.yaml', laser_max_range=4, downsample_factor=5)
+    np.random.seed(0)
+    m = Map('demo_map/floorplan.yaml', laser_max_range=4, downsample_factor=5, crop_size=160)
 
     vis = Visualizer(m, ax)
     vis.draw_map()
 
-    pos = np.array((5.0, 5.0))
-    heading = np.deg2rad(90)
+    # pos = np.array((5.0, 5.0))
+    # heading = np.deg2rad(90)
     n_ray = 100
     fov = np.deg2rad(240.0)
 
-    depth = m.get_1d_depth(pos, heading, fov, n_ray, resolution=0.01)
-    obstacles = depth_to_xy(depth, pos, heading, fov)
+    # depth = m.get_1d_depth(pos, heading, fov, n_ray, resolution=0.01)
+    # obstacles = depth_to_xy(depth, pos, heading, fov)
+    occupancy = m.get_occupancy_grid()
+    W_world = occupancy.shape[1]*m.resolution
+    H_world = occupancy.shape[0]*m.resolution
 
-    vis.draw_obstacles(obstacles, markeredgewidth=1.5)
+    ## uniformly random sample state in freespace
+    while True:
+        world_pos_x = np.random.uniform(0, W_world, 1)[0]
+        world_pos_y = np.random.uniform(0, H_world, 1)[0]
+        grid_pos_x, grid_pos_y = m.grid_coord(world_pos_x, world_pos_y)
+        grid_pos_x = np.clip(grid_pos_x, 0, occupancy.shape[1]-1)
+        grid_pos_y = np.clip(grid_pos_y, 0, occupancy.shape[0]-1)
+
+        if occupancy[grid_pos_y, grid_pos_x]== 0:
+            break
+        
+    world_pos = np.array([world_pos_x, world_pos_y])
+    ## uniformly random sample heading
+    heading = np.random.uniform(0, 360, 1)[0]
+    heading = np.deg2rad(heading)
+    depth = m.get_1d_depth(world_pos, heading, fov, n_ray)
+    depth_xy = depth_to_xy(depth, world_pos, heading, fov)
+
+    ## clip depth
+    np.clip(depth_xy[:, 0], 0, W_world, out=depth_xy[:, 0])
+    np.clip(depth_xy[:, 1], 0, H_world, out=depth_xy[:, 1])
+    
+    ## normalize state position and depth info to [-1,1]
+    world_pos_x = 2.0*world_pos_x/W_world-1.0
+    world_pos_y = 2.0*world_pos_y/H_world-1.0
+    depth_xy[:,0] = 2.0*depth_xy[:,0]/W_world-1.0
+    depth_xy[:,1] = 2.0*depth_xy[:,1]/H_world-1.0
+    heading = 2*heading/(2*math.pi)-1.0
+    
+    print(world_pos_x)
+    print(world_pos_y)
+    print(heading)
+
+    ###
+    depth_xy[:,0] = (depth_xy[:,0]+1)*W_world/2.0
+    depth_xy[:,1] = (depth_xy[:,1]+1)*H_world/2.0
+    vis.draw_obstacles(depth_xy, markeredgewidth=1.5)
     plt.show()

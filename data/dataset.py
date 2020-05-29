@@ -4,6 +4,7 @@ from torch.utils.data import Dataset
 from utils.map_utils import Map, depth_to_xy
 import glob, os.path as osp
 import random
+import math
 class cvae_dataset(Dataset):
     def __init__(self, cfg):
 
@@ -37,35 +38,38 @@ class cvae_dataset(Dataset):
         H_world = occupancy.shape[0]*m.resolution
 
         ## uniformly random sample state in freespace
-        while occupancy[grid_pos_y, grid_pos_x]!= 0:
+        while True:
             world_pos_x = np.random.uniform(0, W_world, 1)[0]
             world_pos_y = np.random.uniform(0, H_world, 1)[0]
             grid_pos_x, grid_pos_y = m.grid_coord(world_pos_x, world_pos_y)
             grid_pos_x = np.clip(grid_pos_x, 0, occupancy.shape[1]-1)
             grid_pos_y = np.clip(grid_pos_y, 0, occupancy.shape[0]-1)
+
+            if occupancy[grid_pos_y, grid_pos_x]== 0:
+                break
         
-        world_pos = np.array((world_pos_x, world_pos_y))
+        world_pos = np.array([world_pos_x, world_pos_y])
         ## uniformly random sample heading
         heading = np.random.uniform(0, 360, 1)[0]
         heading = np.deg2rad(heading)
         depth = m.get_1d_depth(world_pos, heading, self.fov, self.n_ray)
         depth_xy = depth_to_xy(depth, world_pos, heading, self.fov)
 
-        ## normalize state position and depth info to [-1,1]
-        world_pos_x = 2.0*world_pos_x/ max(W_world-1,1)-1.0
-        world_pos_y = 2.0*world_pos_y/ max(H_world-1,1)-1.0
-        depth_xy[:,0] = 2.0*depth_xy[:,0]/ max(W_world-1,1)-1.0
-        depth_xy[:,1] = 2.0*depth_xy[:,1]/ max(H_world-1,1)-1.0
-        heading = 2*heading/(2*math.pi-1)-1.0
+        ## clip depth
+        np.clip(depth_xy[:, 0], 0, W_world, out=depth_xy[:, 0])
+        np.clip(depth_xy[:, 1], 0, H_world, out=depth_xy[:, 1])
 
-        print(state)
-        print(depth_xy)
-        state = torch.Tensor(np.array((world_pos_x, world_pos_y, heading)))
-        occupancy = torch.Tensor(occupancy).unsqueeze(0)
-        depth_xy = torch.Tensor(depth_xy).view(-1,)
-        
-        print(depth_xy.shape)
-        print(state.shape)
+        ## normalize state position and depth info to [-1,1]
+        world_pos_x = 2.0*world_pos_x/W_world-1.0
+        world_pos_y = 2.0*world_pos_y/H_world-1.0
+        depth_xy[:,0] = 2.0*depth_xy[:,0]/W_world-1.0
+        depth_xy[:,1] = 2.0*depth_xy[:,1]/H_world-1.0
+        heading = 2*heading/(2*math.pi)-1.0
+
+    
+        state = torch.Tensor(np.array([world_pos_x, world_pos_y, heading]))
+        occupancy = torch.Tensor(occupancy).unsqueeze(0) ## change shape to (1, W, H)
+        depth_xy = torch.Tensor(depth_xy).view(-1)
 
         return occupancy, depth_xy, state
 
