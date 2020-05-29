@@ -259,20 +259,30 @@ if __name__ == '__main__':
     ## clip depth
     np.clip(depth_xy[:, 0], 0, W_world, out=depth_xy[:, 0])
     np.clip(depth_xy[:, 1], 0, H_world, out=depth_xy[:, 1])
-    
-    ## normalize state position and depth info to [-1,1]
-    world_pos_x = 2.0*world_pos_x/W_world-1.0
-    world_pos_y = 2.0*world_pos_y/H_world-1.0
-    depth_xy[:,0] = 2.0*depth_xy[:,0]/W_world-1.0
-    depth_xy[:,1] = 2.0*depth_xy[:,1]/H_world-1.0
-    heading = 2*heading/(2*math.pi)-1.0
-    
+    print("coord before normalized")
+    print(world_pos_x)
+    print(world_pos_y)
+    print(heading)
+    ## normalize state position and depth info to [0,1]
+    world_pos_x = world_pos_x/W_world
+    world_pos_y = world_pos_y/H_world
+    depth_xy[:,0] = depth_xy[:,0]/W_world
+    depth_xy[:,1] = depth_xy[:,1]/H_world
+    heading = heading/(2*math.pi)
+    print("coord after normalized")
     print(world_pos_x)
     print(world_pos_y)
     print(heading)
 
-    ###
-    depth_xy[:,0] = (depth_xy[:,0]+1)*W_world/2.0
-    depth_xy[:,1] = (depth_xy[:,1]+1)*H_world/2.0
+    ### recover back
+    depth_xy[:,0] = depth_xy[:,0]*W_world
+    depth_xy[:,1] = depth_xy[:,1]*H_world
+    world_pos_x = world_pos_x*W_world
+    world_pos_y = world_pos_y*H_world
+    heading = heading*2*math.pi
+    print("coord after normalized recover")
+    print(world_pos_x)
+    print(world_pos_y)
+    print(heading)
     vis.draw_obstacles(depth_xy, markeredgewidth=1.5)
     plt.show()

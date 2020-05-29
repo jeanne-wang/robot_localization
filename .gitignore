@@ -1,6 +1,5 @@
 .DS_Store
-guided_project_2/
-guided_project_2/*
+guided_project_2
 data/__pycache__
 network/__pycache__
 scripts/__pycache__

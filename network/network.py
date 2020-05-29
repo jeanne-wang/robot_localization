@@ -80,18 +80,17 @@ class Decoder(nn.Module):
     def __init__(self, cfg):
 
         super(Decoder, self).__init__()
-        self.activation_func = activation[cfg.model.activation_func]
         
         self.input_state_dim = cfg.data.input_state_dim
         self.latent_z_dim = cfg.model.latent_z_dim
-        self.input_fc_dim = cfg.data.input_depth_dim + cfg.model.latent_z_dim
+        self.input_fc_dim = cfg.data.input_depth_dim + self.latent_z_dim
         self.hidden_dim = cfg.model.hidden_dim
 
         self.fc = basic_MLP(cfg, self.input_fc_dim) ## for decoding depth and latent variable
         self.cnn = basic_CNN(cfg) ## for encoding occu map
 
         self.linear_out = nn.Linear(2*self.hidden_dim, self.input_state_dim)
-        self.activation = self.activation_func()
+        self.sigmoid_out = nn.Sigmoid()
         
     def forward(self, z, occupancy, depth):
         x1 = self.fc(torch.cat((z, depth), 1))
@@ -99,7 +98,7 @@ class Decoder(nn.Module):
         batch_size = x2.shape[0]
         x2 = x2.view(batch_size,-1) ## flatten the output from cnn
         x = self.linear_out(torch.cat((x1, x2), 1))
-        x = self.activation(x) ## the output should be mapped to (-1,1)
+        x = self.sigmoid_out(x) ## the output should be mapped to (0,1)
         return x
 
 

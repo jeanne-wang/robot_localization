@@ -59,12 +59,12 @@ class cvae_dataset(Dataset):
         np.clip(depth_xy[:, 0], 0, W_world, out=depth_xy[:, 0])
         np.clip(depth_xy[:, 1], 0, H_world, out=depth_xy[:, 1])
 
-        ## normalize state position and depth info to [-1,1]
-        world_pos_x = 2.0*world_pos_x/W_world-1.0
-        world_pos_y = 2.0*world_pos_y/H_world-1.0
-        depth_xy[:,0] = 2.0*depth_xy[:,0]/W_world-1.0
-        depth_xy[:,1] = 2.0*depth_xy[:,1]/H_world-1.0
-        heading = 2*heading/(2*math.pi)-1.0
+        ## normalize state position and depth info to [0,1]
+        world_pos_x = world_pos_x/W_world
+        world_pos_y = world_pos_y/H_world
+        depth_xy[:,0] = depth_xy[:,0]/W_world
+        depth_xy[:,1] = depth_xy[:,1]/H_world
+        heading = heading/(2*math.pi)
 
     
         state = torch.Tensor(np.array([world_pos_x, world_pos_y, heading]))
