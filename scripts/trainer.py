@@ -82,7 +82,7 @@ class Trainer_cvae(Trainer):
     def __init__(self, configs):
         super(Trainer_cvae, self).__init__(configs)
 
-    def cvae_loss(recon_x, x, mean, log_var):
+    def cvae_loss(self,recon_x, x, mean, log_var):
         BCE = nn.functional.binary_cross_entropy(
             recon_x, x, reduction='sum')
     
@@ -105,7 +105,7 @@ class Trainer_cvae(Trainer):
                 recon_state, means, log_var, z = self.model(state, occupancy, depth)
 
                 # loss
-                l = cvae_loss(recon_state, state, means, log_var)
+                l = self.cvae_loss(recon_state, state, means, log_var)
 
                 # backprop
                 self.model.zero_grad()
