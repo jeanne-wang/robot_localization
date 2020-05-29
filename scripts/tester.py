@@ -7,6 +7,10 @@ from network import network
 from data import dataset
 import cv2, json
 import matplotlib.pyplot as plt
+from utils.map_utils import Visualizer, Map
+import glob, os, os.path as osp
+import math
+from utils.utils import fig2img
 
 plt.style.use("ggplot")
 
@@ -75,7 +79,7 @@ class Tester_cvae(Tester):
 
     def run(self):
         recon_losses = []
-        for idx, (occupancy, depth, state) in enumerate(self.dataloader):
+        for idx, (occupancy, depth, state, occu_map_path_batch, W_world, H_world) in enumerate(self.dataloader):
             
             if self.cfg.framework.num_gpu > 0:
                 occupancy, depth, state = (
@@ -96,7 +100,60 @@ class Tester_cvae(Tester):
             
             recon_losses.append(l.detach().cpu().numpy())
 
-           
+            if self.cfg.vis:
+                # get world width and height
+                W_world, H_world = W_world.detach().cpu().numpy(), H_world.detach().cpu().numpy()
+
+                # create the desired dir to store the visualization images
+                vis_dir = "{}/vis".format(self.cfg.base_dir)
+                if not osp.isdir(vis_dir):
+                    os.makedirs(vis_dir)
+
+                # do it
+                for idy in range(len(state)):
+                    # get occu map
+                    occu_map_path = occu_map_path_batch[idy]
+                    if self.dataset.crop_size == 0:
+                        m = Map(osp.join(occu_map_path, 'floorplan.yaml'),
+                                laser_max_range=self.dataset.laser_max_range,
+                                downsample_factor=self.dataset.downsample_factor)
+                    else:
+                        m = Map(osp.join(occu_map_path, 'floorplan.yaml'),
+                                laser_max_range=self.dataset.laser_max_range,
+                                downsample_factor=self.dataset.downsample_factor,
+                                crop_size=self.dataset.crop_size)
+
+                    # allocate visualizer object with matplotlib and occu map
+                    fig, ax = plt.subplots()
+                    vis = Visualizer(m, ax)
+
+                    # draw the essential map
+                    vis.draw_map()
+
+                    # recover depth information and draw it
+                    depth_xy = depth[idy].view(-1, 2).detach().cpu().numpy()
+                    depth_xy[:, 0] = depth_xy[:, 0] * W_world[idy]
+                    depth_xy[:, 1] = depth_xy[:, 1] * H_world[idy]
+                    vis.draw_obstacles(depth_xy, markeredgewidth=1.5)
+
+                    # recover ground truth position and heading and draw it with RED color
+                    input_state = state[idy].detach().cpu().numpy()
+                    world_pos = np.array([input_state[0] * W_world[idy], input_state[1] * H_world[idy]])
+                    heading = np.rad2deg(input_state[2] * (2*math.pi))
+                    vis.drwa_location(world_pos, heading, 'r', markersize=7)
+
+                    # map the reconstructed results and draw it with GREEN color
+                    output_state = recon_state[idy].detach().cpu().numpy()
+                    world_pos = np.array([output_state[0] * W_world[idy], output_state[1] * H_world[idy]])
+                    heading = np.rad2deg(output_state[2] * (2*math.pi))
+                    vis.drwa_location(world_pos, heading, 'g', markersize=7)
+
+                    # convert the matplotlib object to PIL.Image object and save it to the desired dir
+                    img = fig2img(fig)
+                    img.save("{}/{:03d}.png".format(vis_dir, idx * self.cfg.data.batch_size + idy + 1))
+
+                    ### TODO: have multiple sample for the same data and draw the heatmap accordingly
+
         print("finish!")
         print("state reconstruction BCE loss: {:.3f}±{:.3f}".format(np.mean(recon_losses), np.std(recon_losses)))
         json.dump(

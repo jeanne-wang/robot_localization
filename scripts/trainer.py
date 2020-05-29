@@ -93,7 +93,7 @@ class Trainer_cvae(Trainer):
     def run(self):
         losses = []
         for epoch in range(1, self.cfg.train.num_epoch + 1):
-            for idx, (occupancy, depth, state) in enumerate(self.dataloader):
+            for idx, (occupancy, depth, state, _, _, _) in enumerate(self.dataloader):
                 if self.cfg.framework.num_gpu > 0:
                     occupancy, depth, state = (
                         occupancy.to(device=0),

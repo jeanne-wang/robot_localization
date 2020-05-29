@@ -8,9 +8,11 @@ log_dir: "log.jsonl"
 checkpoint_dir: "{{base_dir}}/checkpoints"
 checkpoint_file: best_model
 
+vis: False
+
 framework:
     seed: 12345
-    num_thread: 12
+    num_thread: 1 # 12
     num_gpu: 1
 
 model:
@@ -33,7 +35,7 @@ data:
     occu_map_dir: "data/maps_train"
 
 train:
-    num_epoch: 100
-    lr: 0.01
-    lr_ms: [70, 90]
+    num_epoch: 800
+    lr: 0.001
+    lr_ms: [500, 700]
     save_iter: 10

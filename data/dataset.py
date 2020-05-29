@@ -1,10 +1,13 @@
 import torch
 import numpy as np
 from torch.utils.data import Dataset
-from utils.map_utils import Map, depth_to_xy
+from utils.map_utils import Map, depth_to_xy, Visualizer
+from utils.utils import fig2data
 import glob, os.path as osp
 import random
 import math
+import matplotlib.pyplot as plt
+
 class cvae_dataset(Dataset):
     def __init__(self, cfg):
 
@@ -76,7 +79,7 @@ class cvae_dataset(Dataset):
         occupancy = torch.Tensor(occupancy).unsqueeze(0) ## change shape to (1, W, H)
         depth_xy = torch.Tensor(depth_xy).view(-1)
 
-        return occupancy, depth_xy, state
+        return occupancy, depth_xy, state, occu_map_path, W_world, H_world
 
     
 class cnn_dataset(Dataset):

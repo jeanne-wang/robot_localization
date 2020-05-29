@@ -222,15 +222,18 @@ class Visualizer:
         '''
         self.ax.plot(xys[:, 0], xys[:, 1], '+', *args, **kwargs)
 
+    def drwa_location(self, pos, heading, *args, **kwargs):
+        self.ax.plot(pos[0], pos[1], marker = (3, 0, np.rad2deg(heading)), *args, **kwargs)
+
 
 if __name__ == '__main__':
     fig, ax = plt.subplots()
-    m = Map('demo_map/floorplan.yaml', laser_max_range=4, downsample_factor=5)
+    m = Map('data/maps_train/Alfred/floorplan.yaml', laser_max_range=4, downsample_factor=5)
 
     vis = Visualizer(m, ax)
     vis.draw_map()
 
-    pos = np.array((5.0, 5.0))
+    pos = np.array((5.0, 10.0))
     heading = np.deg2rad(90)
     n_ray = 100
     fov = np.deg2rad(240.0)

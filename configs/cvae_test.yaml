@@ -1,11 +1,14 @@
 mode: "test"
 
 exp_prefix: "cvae"
+dir_prefix: "cvae_lr0.001"
 
-base_dir: "results/{{exp_prefix}}"
+base_dir: "results/{{dir_prefix}}"
 
 checkpoint_dir: "{{base_dir}}/checkpoints"
 checkpoint_file: best_model
+
+vis: True
 
 framework:
     seed: 12345
