@@ -82,6 +82,7 @@ class Decoder(nn.Module):
         super(Decoder, self).__init__()
         self.activation_func = activation[cfg.model.activation_func]
         
+        self.input_state_dim = cfg.data.input_state_dim
         self.latent_z_dim = cfg.model.latent_z_dim
         self.input_fc_dim = cfg.data.input_depth_dim + cfg.model.latent_z_dim
         self.hidden_dim = cfg.model.hidden_dim
@@ -98,7 +99,7 @@ class Decoder(nn.Module):
         batch_size = x2.shape[0]
         x2 = x2.view(batch_size,-1) ## flatten the output from cnn
         x = self.linear_out(torch.cat((x1, x2), 1))
-        x = self.activation(x)
+        x = self.activation(x) ## the output should be mapped to (-1,1)
         return x
 
 
