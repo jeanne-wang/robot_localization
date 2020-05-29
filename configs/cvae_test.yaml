@@ -2,8 +2,7 @@ mode: "test"
 
 exp_prefix: "cvae"
 
-base_dir: "results/{{exp_prefix}}_{{data.crop_size}}"
-log_dir: "log.jsonl"
+base_dir: "results/{{exp_prefix}}"
 
 checkpoint_dir: "{{base_dir}}/checkpoints"
 checkpoint_file: best_model
@@ -23,17 +22,12 @@ data:
     protocol: "cvae"
     input_depth_dim: 200 ## depth input: 100*2, state dim: 3
     input_state_dim: 3
-    input_occumap_dim: [1, 256, 256]
-    batch_size: 8
-    crop_size: 256
-    downsample_factor: 1
+    input_occumap_dim: [1, 256, 256] ## during test, we only downsample, not crop. Thus image sizes vary
+    batch_size: 1
+    crop_size: None
+    downsample_factor: 4
     laser_max_range: 4
     n_ray: 100
     fov: 240
-    occu_map_dir: "data/maps"
+    occu_map_dir: "data/maps_test"
 
-train:
-    num_epoch: 100
-    lr: 0.01
-    lr_ms: [70, 90]
-    save_iter: 10

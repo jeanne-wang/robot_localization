@@ -10,6 +10,9 @@ trainer_protocol = {
     "cvae": trainer.Trainer_cvae,
 }
 
+tester_protocol = {
+    "cvae": tester.Tester_cvae,
+}
 
 def get_configs(replace=True):
     parser = argparse.ArgumentParser(description="We are the best!!!")
