@@ -1,7 +1,7 @@
 mode: "test"
 
-exp_prefix: "cvae"
-dir_prefix: "cvae_lr0.001"
+exp_prefix: "cls"
+dir_prefix: "cls"
 
 base_dir: "results/{{dir_prefix}}"
 
@@ -10,8 +10,8 @@ checkpoint_file: best_model
 
 vis: True
 heatmap:
-    gen: True
-    num_data: 1024
+    gen: False
+    num_data: 0
 
 framework:
     seed: 12345
@@ -19,16 +19,17 @@ framework:
     num_gpu: 1
 
 model:
-    protocol: "cvae"
+    protocol: "cls"
     latent_z_dim: 128
     hidden_dim: 64
     activation_func: tanh # {tanh, sigm, relu}
 
 data:
-    protocol: "cvae"
+    protocol: "cls"
     input_depth_dim: 200 ## depth input: 100*2, state dim: 3
     input_state_dim: 3
     input_occumap_dim: [1, 256, 256] ## during test, we only downsample, not crop. Thus image sizes vary
+    num_bin: 10
     batch_size: 1
     crop_size: 0 ## means no crop
     downsample_factor: 4

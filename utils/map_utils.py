@@ -222,8 +222,20 @@ class Visualizer:
         '''
         self.ax.plot(xys[:, 0], xys[:, 1], '+', *args, **kwargs)
 
-    def drwa_location(self, pos, heading, *args, **kwargs):
+    def draw_location(self, pos, heading, *args, **kwargs):
         self.ax.plot(pos[0], pos[1], marker = (3, 0, np.rad2deg(heading)), *args, **kwargs)
+
+    def draw_heatmap(self, pos):
+        map = np.zeros(self.map.inv_occupancy_grid.shape)
+        for i in range(pos.shape[1]):
+            p = pos[:, i]
+            map[int(p[1] / self.map.resolution), int(p[0] / self.map.resolution)] += 1
+        map /= map.sum()
+        left = self.map.origin[0]
+        bottom = self.map.origin[1]
+        right = left + map.shape[1] * self.map.resolution
+        top = bottom + map.shape[0] * self.map.resolution
+        self.ax.imshow(map, cmap='afmhot', interpolation='nearest', alpha=0.5, origin='lower', extent=(left, right, bottom, top))
 
 
 if __name__ == '__main__':

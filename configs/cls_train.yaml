@@ -1,0 +1,42 @@
+mode: "train"
+
+exp_prefix: "cls"
+
+base_dir: "results/{{exp_prefix}}"
+log_dir: "log.jsonl"
+
+checkpoint_dir: "{{base_dir}}/checkpoints"
+checkpoint_file: best_model
+
+vis: False
+
+framework:
+    seed: 12345
+    num_thread: 12 # 12
+    num_gpu: 1
+
+model:
+    protocol: "cls"
+    latent_z_dim: 128
+    hidden_dim: 64
+    activation_func: tanh # {tanh, sigm, relu}
+
+data:
+    protocol: "cls"
+    input_depth_dim: 200 ## depth input: 100*2, state dim: 3
+    input_state_dim: 3
+    input_occumap_dim: [1, 256, 256]
+    num_bin: 10
+    batch_size: 8
+    crop_size: 256
+    downsample_factor: 4
+    laser_max_range: 4
+    n_ray: 100
+    fov: 240
+    occu_map_dir: "data/maps_train"
+
+train:
+    num_epoch: 1000
+    lr: 0.001
+    lr_ms: [700, 900]
+    save_iter: 10

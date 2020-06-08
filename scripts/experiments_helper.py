@@ -8,10 +8,14 @@ import numpy as np
 
 trainer_protocol = {
     "cvae": trainer.Trainer_cvae,
+    "cls": trainer.Trainer_cls,
+    "reg": trainer.Trainer_reg,
 }
 
 tester_protocol = {
     "cvae": tester.Tester_cvae,
+    "cls": tester.Tester_cls,
+    "reg": tester.Tester_reg,
 }
 
 def get_configs(replace=True):

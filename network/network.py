@@ -102,6 +102,59 @@ class Decoder(nn.Module):
         return x
 
 
+class ClassificationDecoder(nn.Module):
+
+    def __init__(self, cfg):
+        super(ClassificationDecoder, self).__init__()
+
+        self.input_state_dim = cfg.data.input_state_dim
+        self.input_fc_dim = cfg.data.input_depth_dim
+        self.hidden_dim = cfg.model.hidden_dim
+
+        self.fc = basic_MLP(cfg, self.input_fc_dim)  ## for decoding depth and latent variable
+        self.cnn = basic_CNN(cfg)  ## for encoding occu map
+
+        self.linear_out_w = nn.Linear(2 * self.hidden_dim, cfg.data.num_bin)
+        self.linear_out_h = nn.Linear(2 * self.hidden_dim, cfg.data.num_bin)
+        self.linear_out_r = nn.Linear(2 * self.hidden_dim, cfg.data.num_bin)
+
+    def forward(self, occupancy, depth):
+        x1 = self.fc(depth)
+        x2 = self.cnn(occupancy)
+        batch_size = x2.shape[0]
+        x2 = x2.view(batch_size, -1)  ## flatten the output from cnn
+        rep = torch.cat((x1, x2), 1)
+        w = self.linear_out_w(rep).unsqueeze(1)
+        h = self.linear_out_h(rep).unsqueeze(1)
+        r = self.linear_out_r(rep).unsqueeze(1)
+        return torch.cat((w, h, r), 1)
+
+
+class RegressionDecoder(nn.Module):
+
+    def __init__(self, cfg):
+        super(RegressionDecoder, self).__init__()
+
+        self.input_state_dim = cfg.data.input_state_dim
+        self.input_fc_dim = cfg.data.input_depth_dim
+        self.hidden_dim = cfg.model.hidden_dim
+
+        self.fc = basic_MLP(cfg, self.input_fc_dim)  ## for decoding depth and latent variable
+        self.cnn = basic_CNN(cfg)  ## for encoding occu map
+
+        self.linear_out = nn.Linear(2*self.hidden_dim, self.input_state_dim)
+        self.sigmoid_out = nn.Sigmoid()
+
+    def forward(self, occupancy, depth):
+        x1 = self.fc(depth)
+        x2 = self.cnn(occupancy)
+        batch_size = x2.shape[0]
+        x2 = x2.view(batch_size, -1)  ## flatten the output from cnn
+        x = self.linear_out(torch.cat((x1, x2), 1))
+        x = self.sigmoid_out(x) ## the output should be mapped to (0,1)
+        return x
+
+
 class CVAE(nn.Module):
 
     def __init__(self, cfg):
@@ -134,6 +187,26 @@ class CVAE(nn.Module):
         recon_state = self.decoder(z, occupancy, depth)
 
         return recon_state
+
+class Classfication_model(nn.Module):
+
+    def __init__(self, cfg):
+        super(Classfication_model, self).__init__()
+        self.decoder = ClassificationDecoder(cfg)
+
+    def forward(self, occupancy, depth):
+        out = self.decoder(occupancy, depth)
+        return out
+
+class Regression_model(nn.Module):
+
+    def __init__(self, cfg):
+        super(Regression_model, self).__init__()
+        self.decoder = RegressionDecoder(cfg)
+
+    def forward(self, occupancy, depth):
+        out = self.decoder(occupancy, depth)
+        return out
 
 ## to be implemented for state classification
 class CNN(nn.Module):

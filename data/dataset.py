@@ -94,6 +94,8 @@ class cnn_dataset(Dataset):
         self.n_ray = cfg.data.n_ray
         self.fov = cfg.data.fov
 
+        self.num_bin = cfg.data.num_bin
+
         self.occu_map_paths= sorted(glob.glob(osp.join(cfg.data.occu_map_dir,'*')))
         self.length = len(self.occu_map_paths)
 
@@ -104,43 +106,53 @@ class cnn_dataset(Dataset):
         occu_map_path = self.occu_map_paths[index]
 
         ## load map and random crop
-        m = Map(osp.join(occu_map_path, 'floorplan.yaml'), 
-                laser_max_range=self.laser_max_range, 
-                 downsample_factor=self.downsample_factor,
-                 crop_size = self.crop_size)
+        if self.crop_size == 0:
+            m = Map(osp.join(occu_map_path, 'floorplan.yaml'),
+                    laser_max_range=self.laser_max_range,
+                    downsample_factor=self.downsample_factor)
+        else:
+            m = Map(osp.join(occu_map_path, 'floorplan.yaml'),
+                    laser_max_range=self.laser_max_range,
+                    downsample_factor=self.downsample_factor,
+                    crop_size=self.crop_size)
 
-        occupancy_grid = m.get_occupancy_grid()
+        occupancy = m.get_occupancy_grid()
+        W_world = occupancy.shape[1] * m.resolution
+        H_world = occupancy.shape[0] * m.resolution
+
         ## uniformly random sample state in freespace
-        occupancy = 1 #0 means no obstacle
-        state_arr = np.array([])
-        depth_xy_arr = np.array([])
-        for i in range(100):
-            # sample state in freespace
-            while occupancy != 0:
-                class_size = self.crop_size*m.resolution/4
-                class_pos = np.random.randint(0,4,3)
-                
-                world_pos = np.random.uniform(0, class_size, 2)
-                # heading = np.random.uniform(0,np.pi/4) + np.pi/4*class_pos[2]
-                heading = class_pos[2] * 90
-                
-                grid_pos_x, grid_pos_y = m.grid_coord(world_pos[0] + class_pos[0] *class_size  , world_pos[1]+ class_pos[1] *class_size)
-                label = (1 + class_pos[0]) * 100 + (1+class_pos[1]) * 10 + (1 + class_pos[2])
-                occupancy = occupancy_grid[grid_pos_x, grid_pos_y]
-                fov = np.deg2rad(self.fov)
-                depth = m.get_1d_depth(world_pos, heading, fov, self.n_ray)
-                depth_xy = depth_to_xy(depth, world_pos, heading, fov)
-                
-                #save the class info into state
-                state = np.array([class_pos[0]/4, class_pos[1]/4, heading,label])
-                state_arr = np.append(state_arr,state)
-                depth_xy_arr = np.append(depth_xy_arr,depth_xy)
-            # keep finding next state
-            occupancy = 1
-            
+        while True:
+            world_pos_x = np.random.uniform(0, W_world, 1)[0]
+            world_pos_y = np.random.uniform(0, H_world, 1)[0]
+            grid_pos_x, grid_pos_y = m.grid_coord(world_pos_x, world_pos_y)
+            grid_pos_x = np.clip(grid_pos_x, 0, occupancy.shape[1] - 1)
+            grid_pos_y = np.clip(grid_pos_y, 0, occupancy.shape[0] - 1)
 
-        state = state_arr.reshape(-1,4)
-        depth_xy = depth_xy_arr.reshape(-1,1)
-        print(torch.Tensor(state))
-        return torch.Tensor(occupancy_grid).unsqueeze(0), torch.Tensor(depth_xy).view(self.n_ray, -1), torch.Tensor(state)
-    
+            if occupancy[grid_pos_y, grid_pos_x] == 0:
+                break
+
+        world_pos = np.array([world_pos_x, world_pos_y])
+        ## uniformly random sample heading
+        heading = np.random.uniform(0, 360, 1)[0]
+        heading = np.deg2rad(heading)
+        depth = m.get_1d_depth(world_pos, heading, self.fov, self.n_ray)
+        depth_xy = depth_to_xy(depth, world_pos, heading, self.fov)
+
+        ## clip depth
+        np.clip(depth_xy[:, 0], 0, W_world, out=depth_xy[:, 0])
+        np.clip(depth_xy[:, 1], 0, H_world, out=depth_xy[:, 1])
+
+        ## normalize state position and depth info to [0,1]
+        world_pos_x_cls = (world_pos_x) // (W_world / self.num_bin)
+        world_pos_y_cls = (world_pos_y) // (H_world / self.num_bin)
+        depth_xy[:, 0] = depth_xy[:, 0] / W_world
+        depth_xy[:, 1] = depth_xy[:, 1] / H_world
+        heading = heading / (2 * math.pi)
+        heading_cls = (heading) // (1 / self.num_bin)
+        cls = np.array([world_pos_x_cls, world_pos_y_cls, heading_cls])
+
+        cls = torch.LongTensor(cls)
+        occupancy = torch.Tensor(occupancy).unsqueeze(0) ## change shape to (1, W, H)
+        depth_xy = torch.Tensor(depth_xy).view(-1)
+
+        return occupancy, depth_xy, cls, occu_map_path, W_world, H_world
