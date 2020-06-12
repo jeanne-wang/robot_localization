@@ -1,6 +1,6 @@
 mode: "train"
 
-exp_prefix: "cvae"
+exp_prefix: "seq_cvae"
 
 base_dir: "results/{{exp_prefix}}"
 log_dir: "log.jsonl"
@@ -13,16 +13,16 @@ vis: False
 framework:
     seed: 12345
     num_thread: 12 # 12
-    num_gpu: 12
+    num_gpu: 1
 
 model:
-    protocol: "cvae"
+    protocol: "seq_cvae"
     latent_z_dim: 128
     hidden_dim: 64
     activation_func: tanh # {tanh, sigm, relu}
 
 data:
-    protocol: "cvae"
+    protocol: "seq_cvae"
     input_depth_dim: 200 # depth input: 100*2, state dim: 3
     input_state_dim: 3
     input_occumap_dim: [1, 256, 256]
@@ -33,6 +33,8 @@ data:
     n_ray: 100
     fov: 240
     occu_map_dir: "data/maps_train"
+    horizon: 16
+    epsilon: 0.1
     world_coord_laser: True # {True, False} set True to use global depth measurement and False to use local depth measurement
 
 train:

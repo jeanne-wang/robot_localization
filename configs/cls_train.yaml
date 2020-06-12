@@ -23,7 +23,7 @@ model:
 
 data:
     protocol: "cls"
-    input_depth_dim: 200 ## depth input: 100*2, state dim: 3
+    input_depth_dim: 200 # depth input: 100*2, state dim: 3
     input_state_dim: 3
     input_occumap_dim: [1, 256, 256]
     num_bin: 10
@@ -34,6 +34,7 @@ data:
     n_ray: 100
     fov: 240
     occu_map_dir: "data/maps_train"
+    world_coord_laser: True # {True, False} set True to use global depth measurement and False to use local depth measurement
 
 train:
     num_epoch: 1000

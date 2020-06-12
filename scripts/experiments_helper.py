@@ -10,12 +10,14 @@ trainer_protocol = {
     "cvae": trainer.Trainer_cvae,
     "cls": trainer.Trainer_cls,
     "reg": trainer.Trainer_reg,
+    "seq_cvae": trainer.Trainer_cvae,
 }
 
 tester_protocol = {
     "cvae": tester.Tester_cvae,
     "cls": tester.Tester_cls,
     "reg": tester.Tester_reg,
+    "seq_cvae": tester.Tester_cvae,
 }
 
 def get_configs(replace=True):
