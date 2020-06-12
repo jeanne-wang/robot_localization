@@ -102,6 +102,66 @@ class Decoder(nn.Module):
         return x
 
 
+class SeqEncoder(nn.Module):
+
+    def __init__(self, cfg):
+        super(SeqEncoder, self).__init__()
+        self.input_fc_dim = cfg.data.input_depth_dim + cfg.data.input_state_dim
+        self.latent_z_dim = cfg.model.latent_z_dim
+        self.hidden_dim = cfg.model.hidden_dim
+
+        self.fc = basic_MLP(cfg, self.input_fc_dim)  ## for encoding depth and state input
+        self.cnn = basic_CNN(cfg)  ## for encoding occu map
+        self.lstm = nn.LSTM(2 * self.hidden_dim, self.hidden_dim, 1, batch_first=True)
+
+        ## concatenate the output from cnn model and fc model, thus the input is hidden_dim + hidden_dim
+        self.linear_means = nn.Linear(self.hidden_dim, self.latent_z_dim)
+        self.linear_log_var = nn.Linear(self.hidden_dim, self.latent_z_dim)
+
+    def forward(self, state, occupancy, depth):
+        x1 = self.fc(torch.cat((state, depth), 2))
+        x2 = self.cnn(occupancy)
+
+        batch_size = x2.shape[0]
+        x2 = x2.view(batch_size, 1, -1).repeat((1, x1.shape[1], 1))  ## flatten the output from cnn
+
+        x = torch.cat((x1, x2), 2)
+        x, _ = self.lstm(x)
+        means = self.linear_means(x)
+        log_vars = self.linear_log_var(x)
+
+        return means, log_vars
+
+
+class SeqDecoder(nn.Module):
+
+    def __init__(self, cfg):
+        super(SeqDecoder, self).__init__()
+
+        self.input_state_dim = cfg.data.input_state_dim
+        self.latent_z_dim = cfg.model.latent_z_dim
+        self.input_fc_dim = cfg.data.input_depth_dim + self.latent_z_dim
+        self.hidden_dim = cfg.model.hidden_dim
+
+        self.fc = basic_MLP(cfg, self.input_fc_dim)  ## for decoding depth and latent variable
+        self.cnn = basic_CNN(cfg)  ## for encoding occu map
+        self.lstm = nn.LSTM(2 * self.hidden_dim, self.hidden_dim, 1, batch_first=True)
+
+        self.linear_out = nn.Linear(self.hidden_dim, self.input_state_dim)
+        self.sigmoid_out = nn.Sigmoid()
+
+    def forward(self, z, occupancy, depth):
+        x1 = self.fc(torch.cat((z, depth), 2))
+        x2 = self.cnn(occupancy)
+        batch_size = x2.shape[0]
+        x2 = x2.view(batch_size, 1, -1).repeat((1, x1.shape[1], 1))  ## flatten the output from cnn
+        x = torch.cat((x1, x2), 2)
+        x, _ = self.lstm(x)
+        x = self.linear_out(x)
+        x = self.sigmoid_out(x)  ## the output should be mapped to (0,1)
+        return x
+
+
 class ClassificationDecoder(nn.Module):
 
     def __init__(self, cfg):
@@ -183,6 +243,41 @@ class CVAE(nn.Module):
 
         batch_size = occupancy.size(0)
         z = torch.randn([batch_size, self.latent_z_dim]).to(occupancy.device)
+
+        recon_state = self.decoder(z, occupancy, depth)
+
+        return recon_state
+
+class SeqCVAE(nn.Module):
+
+    def __init__(self, cfg):
+        super(SeqCVAE, self).__init__()
+        self.latent_z_dim = cfg.model.latent_z_dim
+        self.encoder = SeqEncoder(cfg)
+        self.decoder = SeqDecoder(cfg)
+
+    def forward(self, state, occupancy, depth):
+
+        batch_size = state.size(0)
+        seq_horizon = state.size(1)
+        assert(occupancy.size(0) == batch_size)
+        assert(depth.size(0) == batch_size)
+
+        means, log_var = self.encoder(state, occupancy, depth)
+
+        std = torch.exp(0.5 * log_var)
+        eps = torch.randn([batch_size, seq_horizon, self.latent_z_dim]).to(std.device)
+        z = eps * std + means
+
+        recon_state = self.decoder(z, occupancy, depth)
+
+        return recon_state, means, log_var, z
+
+    def inference(self, occupancy, depth):
+
+        batch_size = occupancy.size(0)
+        seq_horizon = depth.size(1)
+        z = torch.randn([batch_size, seq_horizon, self.latent_z_dim]).to(occupancy.device)
 
         recon_state = self.decoder(z, occupancy, depth)
 

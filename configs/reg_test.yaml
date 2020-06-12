@@ -26,7 +26,7 @@ model:
 
 data:
     protocol: "reg"
-    input_depth_dim: 200 ## depth input: 100*2, state dim: 3
+    input_depth_dim: 200 # depth input: 100*2, state dim: 3
     input_state_dim: 3
     input_occumap_dim: [1, 256, 256] ## during test, we only downsample, not crop. Thus image sizes vary
     batch_size: 1
@@ -36,4 +36,5 @@ data:
     n_ray: 100
     fov: 240
     occu_map_dir: "data/maps_test"
+    world_coord_laser: True # {True, False} set True to use global depth measurement and False to use local depth measurement
 

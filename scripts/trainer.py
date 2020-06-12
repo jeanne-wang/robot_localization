@@ -10,11 +10,14 @@ from data import dataset
 model_protocol = {"cvae": network.CVAE,
                   "cnn": network.CNN,
                   "cls": network.Classfication_model,
-                  "reg": network.Regression_model}
+                  "reg": network.Regression_model,
+                  "seq_cvae": network.SeqCVAE,}
+
 dataset_protocol = {"cvae": dataset.cvae_dataset,
                     "cnn": dataset.cnn_dataset,
                     "cls": dataset.cvae_dataset,
-                    "reg": dataset.cvae_dataset}
+                    "reg": dataset.cvae_dataset,
+                    "seq_cvae": dataset.seq_cvae_dataset,}
 
 
 class Trainer:
@@ -94,7 +97,10 @@ class Trainer_cvae(Trainer):
     
         KLD = -0.5 * torch.sum(1 + log_var - mean.pow(2) - log_var.exp())
 
-        return (BCE + KLD) / x.size(0)
+        if "seq" in self.cfg.exp_prefix:
+            return (BCE + KLD) / (x.size(0) * x.size(1))
+        else:
+            return (BCE + KLD) / x.size(0)
 
     def run(self):
         losses = []
